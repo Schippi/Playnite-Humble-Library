@@ -1,0 +1,10 @@
+<UserControl x:Class="humble.HumbleLibSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">  
+    <StackPanel>
+        <TextBlock Text="GamesLocation:" />
+        <TextBox Text="{Binding GamesLocation}" />
+        <TextBlock Text="LoginToken:" />
+        <TextBox Text="{Binding LoginToken}" />
+    </StackPanel>
+</UserControl>
