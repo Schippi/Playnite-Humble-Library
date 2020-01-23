@@ -1,5 +1,6 @@
 bin/*
 obj/*
+Test.log
 __pycache__/*
 Test.sln
 .vs/*
