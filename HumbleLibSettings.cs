@@ -1,62 +1,94 @@
-
+using Newtonsoft.Json;
 using Playnite.SDK;
 using System.Collections.Generic;
 using System.Text;
-using  System;
+using System;
 
-namespace humble{
-    public class HumbleLibSettings: ObservableObject, ISettings
+namespace humble
+{
+    public class HumbleLibSettings : ObservableObject, ISettings
     {
         #region Settings
         public string GamesLocation { get; set; } = string.Empty;
 
         public string LoginToken { get; set; } = string.Empty;
 
+        private static ILogger logger = LogManager.GetLogger();
+
+        public bool AlwaysScanEverything { get; set; } = false;
+
         #endregion Settings
 
+        [JsonIgnore]
+        public RelayCommand<object> LoginCommand
+        {
+            get => new RelayCommand<object>((a) =>
+            {
+                Login();
+            });
+        }
+
+        [JsonIgnore]
+        public bool IsUserLoggedIn
+        {
+            get
+            {
+                using (var view = api.WebViews.CreateOffscreenView())
+                {
+                    var api = new HumbleAccountClient(view);
+                    return api.GetIsUserLoggedIn();
+                }
+            }
+        }
 
         private HumbleLibSettings editingClone;
-
         private HumbleGameLibrary library;
         private IPlayniteAPI api;
 
-         public HumbleLibSettings(HumbleGameLibrary library,IPlayniteAPI api) : base ()
+        private void Login()
         {
-         this.api = api;
-         this.library = library;   
-         System.IO.File.AppendAllText("C:/TEMP/games.txt", "before\n", Encoding.UTF8);
-         if (library is null){
-              System.IO.File.AppendAllText("C:/TEMP/games.txt", System.Environment.StackTrace+"\n", Encoding.UTF8);
-         }else {
-            System.IO.File.AppendAllText("C:/TEMP/games.txt", "ITS NOT NULL\n", Encoding.UTF8);
-            try{
-                var settings = library.LoadPluginSettings<HumbleLibSettings>();
-                LoadValues(settings);
-            }catch(Exception e){
-                
-                Console.WriteLine($"The file was not found: '{e}'");
-            }
-         }
-         
-         System.IO.File.AppendAllText("C:/TEMP/games.txt", "after\n", Encoding.UTF8);
-            /*if (settings != null)
+            try
             {
-                if (settings.Version == 0)
+                using (var view = api.WebViews.CreateView(490, 670))
                 {
-                    logger.Debug("Updating itch settings from version 0.");
-                    if (settings.ImportUninstalledGames)
-                    {
-                        settings.ConnectAccount = true;
-                    }
+                    var api = new HumbleAccountClient(view);
+                    api.Login();
                 }
 
-                settings.Version = 1;
-                LoadValues(settings);
-            }*/
+                OnPropertyChanged(nameof(IsUserLoggedIn));
+            }
+            catch (Exception e)// when (!Environment.IsDebugBuild)
+            {
+                logger.Error(e, "Failed to authenticate user.");
+            }
         }
 
-        public HumbleLibSettings GetClone(){
-            var result = new HumbleLibSettings(library,api);
+        public HumbleLibSettings(HumbleGameLibrary library, IPlayniteAPI api) : base()
+        {
+            this.api = api;
+            this.library = library;
+            if (library is null)
+            {
+                //System.IO.File.AppendAllText("C:/TEMP/games.txt", System.Environment.StackTrace+"\n", Encoding.UTF8);
+            }
+            else
+            {
+                try
+                {
+                    var settings = library.LoadPluginSettings<HumbleLibSettings>();
+                    LoadValues(settings);
+                }
+                catch (Exception e)
+                {
+
+                    logger.Info($"The file was not found: '{e}'");
+                }
+            }
+        }
+
+        public HumbleLibSettings GetClone()
+        {
+            var result = new HumbleLibSettings(library, api);
             result.LoadValues(this);
             return result;
         }

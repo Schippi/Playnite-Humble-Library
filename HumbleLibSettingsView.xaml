@@ -6,5 +6,37 @@
         <TextBox Text="{Binding GamesLocation}" />
         <TextBlock Text="LoginToken:" />
         <TextBox Text="{Binding LoginToken}" />
+        <StackPanel Orientation="Horizontal"
+                        DockPanel.Dock="Top" Margin="0,15,5,5" HorizontalAlignment="Left">
+                <Button Content="{DynamicResource LOCAuthenticateLabel}" HorizontalAlignment="Left"
+                        Command="{Binding LoginCommand}"/>
+                <TextBlock VerticalAlignment="Center" Margin="10,5,5,5">
+                    <TextBlock.Tag>
+                        <PriorityBinding>
+                            <Binding Path="IsUserLoggedIn" IsAsync="True" />
+                            <Binding Source="{x:Null}" />
+                        </PriorityBinding>
+                    </TextBlock.Tag>
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                            <Style.Triggers>
+                                <Trigger Property="Tag" Value="{StaticResource True}">
+                                    <Setter Property="Text" Value="{DynamicResource LOCLoggedIn}" />
+                                </Trigger>
+                                <Trigger Property="Tag" Value="{StaticResource False}">
+                                    <Setter Property="Text" Value="{DynamicResource LOCNotLoggedIn}" />
+                                </Trigger>
+                                <Trigger Property="Tag" Value="{x:Null}">
+                                    <Setter Property="Text" Value="{DynamicResource LOCLoginChecking}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+        </StackPanel>
+        <CheckBox DockPanel.Dock="Top" Name="AlwaysScanEverything"
+                  Margin="0,0,0,15"
+                  IsChecked="{Binding AlwaysScanEverything}"
+                  Content="Always Rescan Already Scanned Purchases"/>
     </StackPanel>
 </UserControl>
