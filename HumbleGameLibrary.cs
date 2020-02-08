@@ -58,7 +58,7 @@ namespace humble
 
         public override string Name { get; } = "HumbleLibrary";
 
-        public string RootFolder { get; } = @"D:\HumbleGames";
+       // public string RootFolder { get; } = @"D:\HumbleGames";
 
         private ILogger logger = LogManager.GetLogger();
 
@@ -86,74 +86,71 @@ namespace humble
             return new HumbleLibSettingsView();
         }
 
-        public Dictionary<string, GameInfo> GetInstalledGames()
+        public Dictionary<string, GameInfo> GetInstalledGames() 
         {
             Dictionary<string, GameInfo> result = new Dictionary<string, GameInfo>();
-            foreach (var file in Directory.GetFiles(RootFolder))
+            logger.Info(LibrarySettings.GamesLocation);
+            foreach (var file in Directory.GetDirectories(LibrarySettings.GamesLocation))
             {
                 if (String.Equals(file, ".install"))
                 {
                     continue;
                 }
-                else if (String.Equals(file, ".icons"))
+                string innerdir = Path.Combine(LibrarySettings.GamesLocation, file);
+                
+                //logger.Info(GetGamesOffline().Count());
+                foreach (GameInfo gam in GetGamesOffline())
                 {
-                    continue;
-                }
-                string innerdir = Path.Combine(RootFolder, file);
-                if (Directory.Exists(innerdir))
-                {
-                    foreach (GameInfo gam in GetGamesOffline())
+                    if (String.Equals(file, gam.Name) || String.Equals(file, gam.GameId))
                     {
-                        if (String.Equals(file, gam.Name) || String.Equals(file, gam.GameId))
+                        logger.Info("matched game: "+gam.Name+", "+gam.GameId);
+                        foreach (var innerfile in Directory.GetFiles(innerdir))
                         {
-                            foreach (var innerfile in Directory.GetFiles(RootFolder))
+                            string[] p = innerfile.ToString().Split('/');
+                            string datei = p[p.Length - 1];
+                            if (System.IO.File.Exists(innerfile) && innerfile.ToLower().EndsWith("exe"))
                             {
-                                string[] p = innerfile.ToString().Split('/');
-                                string datei = p[p.Length - 1];
-                                if (System.IO.File.Exists(innerfile) && innerfile.ToLower().EndsWith("exe"))
+                                if (innerfile.ToLower().Contains("unity") || innerfile.Contains("unins"))
                                 {
-                                    if (innerfile.ToLower().Contains("unity") || innerfile.Contains("unins"))
-                                    {
-                                        continue;
-                                    }
-
-                                    var game = new GameInfo()
-                                    {
-                                        Source = "HumbleLibrary",
-                                        GameId = gam.GameId,
-                                        Name = gam.Name,
-                                        InstallDirectory = innerdir,
-                                        PlayAction = new GameAction()
-                                        {
-                                            Type = GameActionType.File,
-                                            Path = innerfile
-                                        },
-                                        IsInstalled = true
-                                    };
+                                    continue;
                                 }
+                                logger.Info("mooo");
+                                logger.Info(innerdir);
+                                var game = new GameInfo()
+                                {
+                                    Source = "HumbleLibrary",
+                                    GameId = gam.GameId,
+                                    Name = gam.Name,
+                                    InstallDirectory = innerdir,
+                                    PlayAction = new GameAction()
+                                    {
+                                        Type = GameActionType.File,
+                                        Path = innerfile
+                                    },
+                                    IsInstalled = true
+                                };
                             }
                         }
                     }
                 }
+                
             }
             return result;
         }
 
         public string IsInstalledGames(string x_name, string x_gameId)
         {
-            foreach (var file in Directory.GetDirectories(RootFolder))
+            //logger.Info("looking for: "+x_name+", "+x_gameId);
+            foreach (var file in Directory.GetDirectories(LibrarySettings.GamesLocation))
             {
-                if (String.Equals(file, "install"))
-                {
-                    continue;
-                }
-                else if (String.Equals(file, ".icons"))
+                if (String.Equals(file, ".install"))
                 {
                     continue;
                 }
 
                 string[] spl = file.Split('\\');
                 string lastpart = spl[spl.Length - 1];
+                
                 //System.IO.File.AppendAllText("C:/TEMP/games.txt", lastpart.ToLower().Replace(" ", "") + " - " + x_gameId.ToLower().Replace(" ", "") + "\n", Encoding.UTF8);
                 //System.IO.File.AppendAllText("C:/TEMP/games.txt", lastpart.ToLower().Replace(" ", "") + " - " + x_name.ToLower().Replace(" ", "") + "\n", Encoding.UTF8);
                 if (String.Equals(lastpart.ToLower().Replace(" ", ""), x_name.ToLower().Replace(" ", "")) || String.Equals(lastpart.ToLower().Replace(" ", ""), x_gameId.ToLower().Replace(" ", "")))
@@ -166,6 +163,7 @@ namespace humble
 
                         if (System.IO.File.Exists(innerfile) && innerfile.ToLower().EndsWith("exe"))
                         {
+                            //logger.Info("exe found: "+innerfile);
                             if (!innerfile.ToLower().Contains("unity"))
                             {
                                 return innerfile;
@@ -200,6 +198,7 @@ namespace humble
         public class HumbleGameData
         {
             public string Name { get; set; }
+            public string PurchaseID { get; set; }
             public string MachineName { get; set; }
             public GameInfo Info { get; set; }
             public GameMetadata Meta { get; set; }
@@ -245,6 +244,7 @@ namespace humble
                         {
                             var data = new HumbleGameData()
                             {
+                                PurchaseID = gaem,
                                 Name = info1.Name,
                                 Info = info1,
                                 Meta = meta,
@@ -278,10 +278,10 @@ namespace humble
             item.TryGetValue("human_name", out var human);
             item.TryGetValue("icon", out var icn);
             item.TryGetValue("machine_name", out var gid);
+            item.TryGetValue("url", out var gameURL);
             object plat;
             meta = new GameMetadata();
             info = null;
-
             JArray jo = (JArray)o;
             foreach (JToken subtoken in jo.Children())
             {
@@ -299,17 +299,20 @@ namespace humble
                 Dictionary<string, object> myurld = ((JObject)myurl).ToObject<Dictionary<string, object>>();
                 myurld.TryGetValue("web", out var myweburl);
 
-                string icn2 = Path.Combine(Path.Combine(RootFolder, ".icons"), gid + ".png");
+                string icn2 = Path.Combine(GetCachePath("icons"), gid + ".png");
                 if (plat.ToString().Equals("windows"))
                 {
                     //System.IO.File.AppendAllText("C:/TEMP/games.txt", human.ToString() + "\n", Encoding.UTF8);
                     string x_path = IsInstalledGames(human.ToString(), gid.ToString());
                     bool ins = false;
+                    string inspath = null;
 
                     if (x_path != null)
                     {
                         ins = true;
+                        inspath = System.IO.Path.GetDirectoryName(x_path);
                         //System.IO.File.AppendAllText("C:/TEMP/games.txt", x_path + "\n", Encoding.UTF8);
+                        logger.Info("installpath:"+inspath);
                     }
                     else
                     {
@@ -324,14 +327,20 @@ namespace humble
                         PlayAction = new GameAction()
                         {
                             Type = GameActionType.File,
-                            Path = x_path ?? "C:/Program Files (x86)/Notepad++/notepad++.exe"
+                            Path = x_path
                         },
                         Links = new List<Playnite.SDK.Models.Link>(){
                             new Playnite.SDK.Models.Link("downloadURL",myweburl.ToString())
                         },
                         IsInstalled = ins,
+                        InstallDirectory = inspath,
                         Icon = icn2.ToString()
                     };
+                    if(gameURL != null){
+                        info.Links.Add(
+                                new Playnite.SDK.Models.Link("Website",gameURL.ToString())
+                        );
+                    }
                     if (!(icn is null) && !System.IO.File.Exists(icn2))
                     {
                         cln.DownloadFile(
@@ -349,9 +358,11 @@ namespace humble
             return false;
         }
 
+
+
         public override IEnumerable<GameInfo> GetGames()
         {
-            System.IO.Directory.CreateDirectory(Path.Combine(RootFolder, ".icons"));
+            System.IO.Directory.CreateDirectory(GetCachePath("icons"));
             
             List<GameInfo> result = new List<GameInfo>();
             string logintoken = LibrarySettings.LoginToken;
@@ -417,7 +428,36 @@ namespace humble
             //System.IO.File.AppendAllText(cacheFile, "[\n", Encoding.UTF8);
             
             List<string> already = new List<string>();
+
             string filecontents = "{\r\n";
+
+            json = System.IO.File.ReadAllText(cacheFile);
+            
+
+            Dictionary<string, object> values = JsonConvert.DeserializeObject<Dictionary<string, object>>(json, new JsonConverter[] { new MyConverter() });
+
+            foreach (KeyValuePair<string, object> entry in values)
+            {
+                Dictionary<string, object> item;
+                item = (Dictionary<string, object>)entry.Value;
+
+                var output = JsonConvert.SerializeObject(item,Formatting.Indented);
+
+                //already.Add(entry.Key);
+                //logger.Info("xxxXXXxxx  "+output);
+                already.Add(entry.Key);
+
+                if (already.Count > 1)
+                {
+                    filecontents += ",\r\n\"" + entry.Key + "\" : " + output;
+                }
+                else
+                {
+                    filecontents +=  "\""+entry.Key + "\" : " + output;
+                }
+
+            }
+            
             foreach (KeyValuePair<Thread, ThreadWithState> entry in threads)
             {
                 entry.Key.Join();
@@ -431,16 +471,17 @@ namespace humble
                         metadata[pair.Key] = pair.Value.Meta;
                         if (already.Count > 1)
                         {
-                            filecontents += ",\r\n\"" + pair.Value.MachineName + "\" = " + pair.Value.Json;
+                            filecontents += ",\r\n\"" + pair.Value.MachineName + "\" : " + pair.Value.Json;
                         }
                         else
                         {
-                            filecontents +=  pair.Value.MachineName + "\" = " + pair.Value.Json;
+                            filecontents +=  "\""+pair.Value.MachineName + "\" : " + pair.Value.Json;
                         }
 
                     }
                 }
             }
+            //logger.Info(filecontents+"\r\n}");
             System.IO.File.WriteAllText(cacheFile, filecontents+"\r\n}", Encoding.UTF8);
 
 

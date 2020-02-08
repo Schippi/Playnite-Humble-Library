@@ -29,6 +29,8 @@ namespace humble
         private Stopwatch stopWatch;
         private HumbleGameLibrary library;
         private IPlayniteAPI api;
+
+        private ILogger logger = LogManager.GetLogger();
         public string FileName { get; set;} = "";
          public string Extension { get; set;} = "";
          private string GameName;
@@ -87,23 +89,26 @@ namespace humble
         }
         public void wc_OnDownloadFileCompleted (object sender, System.ComponentModel.AsyncCompletedEventArgs e)
         {
+            var x = library.IsInstalledGames(Game.Name,Game.GameId);
+            
             if(String.Equals(Extension,"exe")){  
-                WindowManager.MsgBoxResult result = WindowManager.Interaction.MsgBox("please install into either of these:\n"+Path.Combine(library.RootFolder,Game.Name)+"\n"+Path.Combine(library.RootFolder,Game.GameId), "Notice", MsgBoxStyle.OkOnly);           
+                WindowManager.MsgBoxResult result = WindowManager.Interaction.MsgBox("please install into either of these:\n"+Path.Combine(settings.GamesLocation,Game.Name)+"\n"+Path.Combine(settings.GamesLocation,Game.GameId), "Notice", MsgBoxStyle.OkOnly);           
                 AsyncProcess(FileName);             
             }else if(String.Equals(Extension,"zip") || String.Equals(Extension,"rar")){
                 //System.IO.File.AppendAllText("C:/TEMP/games.txt", "before asyc\n", Encoding.UTF8);
-                AsyncUnzip(FileName,Path.Combine(library.RootFolder,Game.Name));
-                //ZipFile.ExtractToDirectory(FileName,Path.Combine(library.RootFolder,Game.Name));
+                AsyncUnzip(FileName,Path.Combine(settings.GamesLocation,Game.Name));
+                //ZipFile.ExtractToDirectory(FileName,Path.Combine(settings.GamesLocation,Game.Name));
                // System.IO.File.AppendAllText("C:/TEMP/games.txt", "after asyc\n", Encoding.UTF8);
             }else{
                 string[] p = this.FileName.ToString().Split('/');
                 string datei = p[p.Length-1];
                 WindowManager.MsgBoxResult result = WindowManager.Interaction.MsgBox("Cannot determine how to install "+Game.Name
                 +"\nInstall this file: "+datei
-                +"\n\ninto either of these Folders:\n"+Path.Combine(library.RootFolder,Game.Name)+"\n"+Path.Combine(library.RootFolder,Game.GameId), "Notice", MsgBoxStyle.OkOnly);           
-                AsyncProcess(Path.Combine(library.RootFolder,".install"));
+                +"\n\ninto either of these Folders:\n"+Path.Combine(settings.GamesLocation,Game.Name)+"\n"+Path.Combine(settings.GamesLocation,Game.GameId), "Notice", MsgBoxStyle.OkOnly);           
+                AsyncProcess(Path.Combine(settings.GamesLocation,".install"));
             }
             StartInstallWatcher();
+            
         }
 
          public async Task AsyncProcess(string file)
@@ -133,14 +138,14 @@ namespace humble
             ObservableCollection<Playnite.SDK.Models.Link> links = this.Game.Links;
             foreach(Link mylink in links){
                 if(String.Equals(mylink.Name,"downloadURL")){
-                    System.IO.File.AppendAllText("C:/TEMP/games.txt", mylink.Url.ToString()+"\n", Encoding.UTF8);
+                    //System.IO.File.AppendAllText("C:/TEMP/games.txt", mylink.Url.ToString()+"\n", Encoding.UTF8);
 
                     string[] exarra = mylink.Url.ToString().Split('?')[0].Split('/');
                     this.Extension = exarra[exarra.Length-1].Split('.')[1].ToLower();
 
-                    this.FileName = Path.Combine(Path.Combine(library.RootFolder,".install"),Game.GameId+"."+Extension);
+                    this.FileName = Path.Combine(Path.Combine(settings.GamesLocation,".install"),Game.GameId+"."+Extension);
                     
-                    System.IO.Directory.CreateDirectory(Path.Combine(library.RootFolder,".install"));
+                    System.IO.Directory.CreateDirectory(Path.Combine(settings.GamesLocation,".install"));
                     
 
                     if(!System.IO.File.Exists(FileName)){
@@ -167,7 +172,10 @@ namespace humble
         public override void Uninstall()
         {
             ReleaseResources();
+            logger.Info("uninstall");
+            logger.Info(Game.InstallDirectory);
             var uninstaller = Path.Combine(Game.InstallDirectory, "unins000.exe");
+            
             if (!File.Exists(uninstaller))
             {
                 throw new FileNotFoundException("Uninstaller not found.");
@@ -213,9 +221,15 @@ namespace humble
 
         public async void StartInstallWatcher()
         {
+            logger.Info("StartInstallWatcher started:"+Game.GameId);
+            if(watcherToken != null)
+            {
+                watcherToken.CancelAfter(200);
+                await Task.Delay(1000);
+            }
             watcherToken = new CancellationTokenSource();  
             var stopWatch = Stopwatch.StartNew();
-
+            watcherToken.CancelAfter(18000);
             while (true)
             {
                 if (watcherToken.IsCancellationRequested)
@@ -224,6 +238,13 @@ namespace humble
                 }
 
                 var games = library.GetInstalledGames();
+                
+
+                foreach(KeyValuePair<string, GameInfo> entry in games)
+                {
+                    logger.Info(entry.Key);
+                }
+
                 if (games.ContainsKey(Game.GameId))
                 {
                     var game = games[Game.GameId];
