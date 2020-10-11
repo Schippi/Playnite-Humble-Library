@@ -110,6 +110,7 @@ namespace humble
         {
             this.GamesLocation = source.GamesLocation;
             this.LoginToken = source.LoginToken;
+            this.AlwaysScanEverything = source.AlwaysScanEverything;
         }
 
         public void EndEdit()
