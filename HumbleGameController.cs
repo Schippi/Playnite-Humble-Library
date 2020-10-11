@@ -89,7 +89,7 @@ namespace humble
         }
         public void wc_OnDownloadFileCompleted (object sender, System.ComponentModel.AsyncCompletedEventArgs e)
         {
-            var x = library.IsInstalledGames(Game.Name,Game.GameId);
+            //var x = library.IsInstalledGames(Game.Name,Game.GameId,true);
             
             if(String.Equals(Extension,"exe")){  
                 WindowManager.MsgBoxResult result = WindowManager.Interaction.MsgBox("please install into either of these:\n"+Path.Combine(settings.GamesLocation,Game.Name)+"\n"+Path.Combine(settings.GamesLocation,Game.GameId), "Notice", MsgBoxStyle.OkOnly);           
@@ -238,15 +238,10 @@ namespace humble
                 }
 
                 var games = library.GetInstalledGames();
-                
-
-                foreach(KeyValuePair<string, GameInfo> entry in games)
-                {
-                    logger.Info(entry.Key);
-                }
 
                 if (games.ContainsKey(Game.GameId))
                 {
+                    logger.Info("Installer "+Game.GameId);
                     var game = games[Game.GameId];
                     stopWatch.Stop();
                     var installInfo = new GameInfo()
@@ -256,7 +251,7 @@ namespace humble
                         InstallDirectory = game.InstallDirectory
                     };
 
-                    OnInstalled(this, new GameInstalledEventArgs(installInfo, this, stopWatch.Elapsed.TotalSeconds));
+                    OnInstalled(this, new GameInstalledEventArgs(game, this, stopWatch.Elapsed.TotalSeconds));
                     return;
                 }
 

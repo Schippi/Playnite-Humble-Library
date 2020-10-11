@@ -23,32 +23,7 @@ using System.Threading;
 
 namespace humble
 {
-    class MyConverter : CustomCreationConverter<IDictionary<string, object>>
-    {
-        public override IDictionary<string, object> Create(Type objectType)
-        {
-            return new Dictionary<string, object>();
-        }
-
-        public override bool CanConvert(Type objectType)
-        {
-            // in addition to handling IDictionary<string, object>
-            // we want to handle the deserialization of dict value
-            // which is of type object
-            return objectType == typeof(object) || base.CanConvert(objectType);
-        }
-
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
-        {
-            if (reader.TokenType == JsonToken.StartObject
-                || reader.TokenType == JsonToken.Null)
-                return base.ReadJson(reader, objectType, existingValue, serializer);
-
-            // if the next token is not an object
-            // then fall back on standard deserializer (strings, numbers etc.)
-            return serializer.Deserialize(reader);
-        }
-    }
+    
 
 
 
@@ -88,89 +63,107 @@ namespace humble
 
         public Dictionary<string, GameInfo> GetInstalledGames() 
         {
+
             Dictionary<string, GameInfo> result = new Dictionary<string, GameInfo>();
-            logger.Info(LibrarySettings.GamesLocation);
+            logger.Info("hello"+LibrarySettings.GamesLocation);
             foreach (var file in Directory.GetDirectories(LibrarySettings.GamesLocation))
             {
                 if (String.Equals(file, ".install"))
                 {
                     continue;
                 }
-                string innerdir = Path.Combine(LibrarySettings.GamesLocation, file);
                 
-                //logger.Info(GetGamesOffline().Count());
                 foreach (GameInfo gam in GetGamesOffline())
                 {
-                    if (String.Equals(file, gam.Name) || String.Equals(file, gam.GameId))
-                    {
-                        logger.Info("matched game: "+gam.Name+", "+gam.GameId);
-                        foreach (var innerfile in Directory.GetFiles(innerdir))
+                    string exe = IsInstalledGames(gam.Name,gam.GameId,false);
+                    if(exe != null){
+                        var game = new GameInfo()
                         {
-                            string[] p = innerfile.ToString().Split('/');
-                            string datei = p[p.Length - 1];
-                            if (System.IO.File.Exists(innerfile) && innerfile.ToLower().EndsWith("exe"))
+                            Source = "HumbleLibrary",
+                            GameId = gam.GameId,
+                            Name = gam.Name,
+                            InstallDirectory = System.IO.Path.GetDirectoryName(exe),
+                            PlayAction = new GameAction()
                             {
-                                if (innerfile.ToLower().Contains("unity") || innerfile.Contains("unins"))
-                                {
-                                    continue;
-                                }
-                                logger.Info("mooo");
-                                logger.Info(innerdir);
-                                var game = new GameInfo()
-                                {
-                                    Source = "HumbleLibrary",
-                                    GameId = gam.GameId,
-                                    Name = gam.Name,
-                                    InstallDirectory = innerdir,
-                                    PlayAction = new GameAction()
-                                    {
-                                        Type = GameActionType.File,
-                                        Path = innerfile
-                                    },
-                                    IsInstalled = true
-                                };
-                            }
+                                Type = GameActionType.File,
+                                Path = exe
+                            },
+                            IsInstalled = true
+                        };
+                        if(!result.ContainsKey(gam.GameId)){
+                            result.Add(gam.GameId,game);
                         }
                     }
                 }
                 
             }
+
             return result;
         }
 
-        public string IsInstalledGames(string x_name, string x_gameId)
+        public string IsInstalledGames(string x_name, string x_gameId,Boolean prin)
         {
-            //logger.Info("looking for: "+x_name+", "+x_gameId);
+            if(prin){logger.Info("looking for: "+x_name+", "+x_gameId);}
             foreach (var file in Directory.GetDirectories(LibrarySettings.GamesLocation))
             {
                 if (String.Equals(file, ".install"))
                 {
                     continue;
                 }
+                
 
                 string[] spl = file.Split('\\');
                 string lastpart = spl[spl.Length - 1];
-                
-                //System.IO.File.AppendAllText("C:/TEMP/games.txt", lastpart.ToLower().Replace(" ", "") + " - " + x_gameId.ToLower().Replace(" ", "") + "\n", Encoding.UTF8);
-                //System.IO.File.AppendAllText("C:/TEMP/games.txt", lastpart.ToLower().Replace(" ", "") + " - " + x_name.ToLower().Replace(" ", "") + "\n", Encoding.UTF8);
+
                 if (String.Equals(lastpart.ToLower().Replace(" ", ""), x_name.ToLower().Replace(" ", "")) || String.Equals(lastpart.ToLower().Replace(" ", ""), x_gameId.ToLower().Replace(" ", "")))
                 {
-                    //System.IO.File.AppendAllText("C:/TEMP/games.txt", "3", Encoding.UTF8);
                     foreach (var innerfile in Directory.GetFiles(file))
                     {
-                        //string filepath = Path.Combine(file,innerfile);
-                        //System.IO.File.AppendAllText("C:/TEMP/games.txt", "4" + innerfile, Encoding.UTF8);
-
                         if (System.IO.File.Exists(innerfile) && innerfile.ToLower().EndsWith("exe"))
                         {
                             //logger.Info("exe found: "+innerfile);
-                            if (!innerfile.ToLower().Contains("unity"))
+                            if (!innerfile.ToLower().Contains("unity") && !innerfile.ToLower().Contains("unins"))
                             {
+                                if(prin){logger.Info("found it!: "+innerfile);}
                                 return innerfile;
                             }
-
-
                         }
+                    }
+                    foreach (var innerfile in Directory.GetDirectories(file))
+                    {
+                        if(System.IO.Directory.Exists(innerfile) && (innerfile.ToLower().EndsWith(x_name.ToLower()) || innerfile.ToLower().EndsWith("bin")))
+                        {
+                            foreach (var eveninnerfile in Directory.GetFiles(innerfile))
+                            {
+                                if(String.Equals(x_gameId,"syzygy")){logger.Info("file 1 "+eveninnerfile);}
+                                if (System.IO.File.Exists(eveninnerfile) && eveninnerfile.ToLower().EndsWith("exe"))
+                                {
+                                    if (!eveninnerfile.ToLower().Contains("unity") && !innerfile.ToLower().Contains("unins")) 
+                                    {
+                                        if(prin){logger.Info("found it!: "+eveninnerfile);}
+                                        return eveninnerfile;
+                                    }
+                                }
+                            }
+                            foreach (var eveninnerfile in Directory.GetDirectories(innerfile))
+                            {
+                                if(System.IO.Directory.Exists(eveninnerfile) && (eveninnerfile.ToLower().EndsWith(x_name.ToLower()) || eveninnerfile.ToLower().EndsWith("bin")))
+                                {
+                                    foreach (var superinnerfile in Directory.GetFiles(eveninnerfile))
+                                    {
+                                        if (System.IO.File.Exists(superinnerfile) && superinnerfile.ToLower().EndsWith("exe"))
+                                        {
+                                            if (!superinnerfile.ToLower().Contains("unity") && !innerfile.ToLower().Contains("unins"))
+                                            {
+                                                if(prin){logger.Info("found it!: "+superinnerfile);}
+                                                return superinnerfile;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                     }
                 }
 
@@ -303,7 +296,7 @@ namespace humble
                 if (plat.ToString().Equals("windows"))
                 {
                     //System.IO.File.AppendAllText("C:/TEMP/games.txt", human.ToString() + "\n", Encoding.UTF8);
-                    string x_path = IsInstalledGames(human.ToString(), gid.ToString());
+                    string x_path = IsInstalledGames(human.ToString(), gid.ToString(),false);
                     bool ins = false;
                     string inspath = null;
 
@@ -431,7 +424,11 @@ namespace humble
 
             string filecontents = "{\r\n";
 
-            json = System.IO.File.ReadAllText(cacheFile);
+            if(System.IO.File.Exists(cacheFile)){
+                json = System.IO.File.ReadAllText(cacheFile);
+            }else{
+                json = "{}";
+            }
             
 
             Dictionary<string, object> values = JsonConvert.DeserializeObject<Dictionary<string, object>>(json, new JsonConverter[] { new MyConverter() });
@@ -549,6 +546,33 @@ namespace humble
                     Icon = @"C:\Program Files (x86)\Notepad++\notepad++.exe"
                 }
             };*/
+        }
+    }
+
+    class MyConverter : CustomCreationConverter<IDictionary<string, object>>
+    {
+        public override IDictionary<string, object> Create(Type objectType)
+        {
+            return new Dictionary<string, object>();
+        }
+
+        public override bool CanConvert(Type objectType)
+        {
+            // in addition to handling IDictionary<string, object>
+            // we want to handle the deserialization of dict value
+            // which is of type object
+            return objectType == typeof(object) || base.CanConvert(objectType);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.StartObject
+                || reader.TokenType == JsonToken.Null)
+                return base.ReadJson(reader, objectType, existingValue, serializer);
+
+            // if the next token is not an object
+            // then fall back on standard deserializer (strings, numbers etc.)
+            return serializer.Deserialize(reader);
         }
     }
 }
