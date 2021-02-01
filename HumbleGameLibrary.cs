@@ -65,7 +65,7 @@ namespace humble
         {
 
             Dictionary<string, GameInfo> result = new Dictionary<string, GameInfo>();
-            logger.Info("hello"+LibrarySettings.GamesLocation);
+            logger.Info("hello HumbleGames:"+LibrarySettings.GamesLocation);
             foreach (var file in Directory.GetDirectories(LibrarySettings.GamesLocation))
             {
                 if (String.Equals(file, ".install"))
@@ -82,6 +82,7 @@ namespace humble
                             Source = "HumbleLibrary",
                             GameId = gam.GameId,
                             Name = gam.Name,
+                            Platform = "PC",
                             InstallDirectory = System.IO.Path.GetDirectoryName(exe),
                             PlayAction = new GameAction()
                             {
@@ -135,7 +136,7 @@ namespace humble
                         {
                             foreach (var eveninnerfile in Directory.GetFiles(innerfile))
                             {
-                                if(String.Equals(x_gameId,"syzygy")){logger.Info("file 1 "+eveninnerfile);}
+                                if(prin && String.Equals(x_gameId,"syzygy")){logger.Info("file 1 "+eveninnerfile);}
                                 if (System.IO.File.Exists(eveninnerfile) && eveninnerfile.ToLower().EndsWith("exe"))
                                 {
                                     if (!eveninnerfile.ToLower().Contains("unity") && !innerfile.ToLower().Contains("unins")) 
@@ -305,7 +306,7 @@ namespace humble
                         ins = true;
                         inspath = System.IO.Path.GetDirectoryName(x_path);
                         //System.IO.File.AppendAllText("C:/TEMP/games.txt", x_path + "\n", Encoding.UTF8);
-                        logger.Info("installpath:"+inspath);
+                        //logger.Info("installpath:"+inspath);
                     }
                     else
                     {
@@ -327,6 +328,7 @@ namespace humble
                         },
                         IsInstalled = ins,
                         InstallDirectory = inspath,
+                        Platform = "PC",
                         Icon = icn2.ToString()
                     };
                     if(gameURL != null){
@@ -402,6 +404,7 @@ namespace humble
                 foreach (KeyValuePair<String, JToken> app in root)
                 {
                     if(!purchases.Contains(app.Value.ToString())){
+                        logger.Info("new purchase id: "+app.Value.ToString());
                         purchases.Add(app.Value.ToString());
                         ThreadWithState tws = new ThreadWithState(this,  logintoken, app.Value.ToString());
                         Thread t = new Thread(new ThreadStart(tws.ThreadProc));

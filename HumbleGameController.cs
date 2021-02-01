@@ -172,8 +172,8 @@ namespace humble
         public override void Uninstall()
         {
             ReleaseResources();
-            logger.Info("uninstall");
-            logger.Info(Game.InstallDirectory);
+            //logger.Info("uninstall");
+            //logger.Info(Game.InstallDirectory);
             var uninstaller = Path.Combine(Game.InstallDirectory, "unins000.exe");
             
             if (!File.Exists(uninstaller))
@@ -229,7 +229,7 @@ namespace humble
             }
             watcherToken = new CancellationTokenSource();  
             var stopWatch = Stopwatch.StartNew();
-            watcherToken.CancelAfter(18000);
+            watcherToken.CancelAfter(30000);
             while (true)
             {
                 if (watcherToken.IsCancellationRequested)
